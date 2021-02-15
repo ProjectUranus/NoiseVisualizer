@@ -1,11 +1,10 @@
 plugins {
     id 'java'
-	id 'maven'
 	id 'maven-publish'
 	id 'signing'
-    id 'org.jetbrains.kotlin.jvm' version '1.3.50'
-    id 'org.openjfx.javafxplugin' version '0.0.8'
-    id "com.bmuschko.nexus" version "2.3.1"
+    id 'publishing'
+    id 'org.jetbrains.kotlin.jvm' version '1.4.10'
+    id 'org.openjfx.javafxplugin' version '0.0.9'
 }
 
 group 'com.projecturanus'
@@ -22,45 +21,66 @@ javafx {
     modules = [ 'javafx.controls', 'javafx.graphics' ]
 }
 
-
-modifyPom {
-	project {
-		name POM_NAME
-		packaging POM_PACKAGING
-		description POM_DESCRIPTION
-		url POM_URL
-
-		scm {
-			url POM_SCM_URL
-			connection POM_SCM_CONNECTION
-			developerConnection POM_SCM_DEV_CONNECTION
-		}
-
-		licenses {
-			license {
-				name POM_LICENCE_NAME
-				url POM_LICENCE_URL
-				distribution POM_LICENCE_DIST
-			}
-		}
-
-		developers {
-			developer {
-				email POM_DEVELOPER_EMAIL
-				name POM_DEVELOPER_NAME
-			}
-		}
-	}
+java {
+    withJavadocJar()
+    withSourcesJar()
 }
 
-nexus {
-    sign = true
+ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
+
+publishing {
+	repositories {
+        maven {
+            def releaseRepo = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+            def snapshotRepo = "https://oss.sonatype.org/content/repositories/snapshots/"
+            url = releaseRepo
+            credentials {
+                username = nexusUsername
+                password = nexusPassword
+            }
+        }
+    }
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            pom {
+                name = POM_NAME
+                description = POM_DESCRIPTION
+                url = POM_URL
+
+                scm {
+                    url = POM_SCM_URL
+                    connection = POM_SCM_CONNECTION
+                    developerConnection = POM_SCM_DEV_CONNECTION
+                }
+
+                licenses {
+                    license {
+                        name = POM_LICENCE_NAME
+                        url = POM_LICENCE_URL
+                    }
+                }
+
+                developers {
+                    developer {
+                        email = POM_DEVELOPER_EMAIL
+                        name = POM_DEVELOPER_NAME
+                    }
+                }
+            }
+        }
+    }
 }
 
-extraArchive {
-    sources = false
-    tests = false
-    javadoc = false
+// -------------------------------------
+// here 'publishing' extension will come
+// -------------------------------------
+
+signing {
+    sign publishing.publications.mavenJava
+}
+tasks.withType(Sign) {
+    onlyIf { isReleaseVersion }
 }
 
 dependencies {
@@ -70,11 +90,13 @@ dependencies {
     implementation 'no.tornado:tornadofx:1.7.19'
     implementation 'org.controlsfx:controlsfx:11.0.0'
 }
+
 compileKotlin {
     kotlinOptions {
         jvmTarget = "1.8"
     }
 }
+
 compileTestKotlin {
     kotlinOptions {
         jvmTarget = "1.8"
